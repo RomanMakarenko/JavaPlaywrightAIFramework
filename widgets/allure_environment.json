@@ -1,1 +1,1 @@
-[{"name":"base.url","values":["https://funtime.com.ua"]},{"name":"browser","values":["chromium"]},{"name":"headless","values":["true"]},{"name":"java.version","values":["21.0.12"]},{"name":"os.arch","values":["amd64"]},{"name":"os.name","values":["Linux"]}]
+[{"name":"base.url","values":["https://funtime.com.ua"]},{"name":"browser","values":["chromium"]},{"name":"environment","values":["prod"]},{"name":"headless","values":["true"]},{"name":"java.version","values":["21.0.12"]},{"name":"os.arch","values":["amd64"]},{"name":"os.name","values":["Linux"]}]
