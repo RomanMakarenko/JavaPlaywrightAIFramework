@@ -100,8 +100,9 @@ jobs:
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
-          # SCRUM's (team-managed) scheme has no "Bug" type — only Epic/Subtask/Task/Story — so the
-          # default jira.issue.type=Bug would be rejected; Task is what actually creates (verified 2026-08-23).
+          # SCRUM is team-managed (next-gen): the REST API cannot add issue types to its scheme
+          # (JSWCLOUD-23545), so "Bug" must exist in the project UI. JIRA_ISSUE_TYPE=Bug is set here
+          # so auto-filed tickets are literal Bug issues (default jira.issue.type=Bug in config).
           JIRA_ISSUE_TYPE: ${{ secrets.JIRA_ISSUE_TYPE }}
           JIRA_TICKETS_ENABLED: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.create-jira-tickets == 'true')) && 'true' || 'false' }}
         run: mvn clean test ${{ github.event_name == 'pull_request' && '-Dgroups=smoke' || '' }}

@@ -178,10 +178,12 @@ run a deliberately failing test, confirm a Bug ticket with a screenshot lands in
 the probe test. Same flow works on CI via a manual `workflow_dispatch`.
 
 > **Gotchas (found during end-to-end verification 2026-08-23):** the configured project's issue-type
-> scheme must actually contain `jira.issue.type` — a team-managed project's default scheme
-> (Epic/Subtask/Task/Story) has **no `Bug` type**, so set `jira.issue.type=Task` (or add a Bug type
-> in the project scheme); same on CI via `JIRA_ISSUE_TYPE=Task`. And if your `JIRA_API_TOKEN` ends
-> with `=` (base64), don't truncate it when copy-pasting — the trailing `=…` is part of the token.
+> scheme must actually contain `jira.issue.type` — SCRUM is team-managed and its default scheme
+> (Epic/Subtask/Task/Story) has **no `Bug` type**. The REST API cannot add issue types to a
+> team-managed scheme (JSWCLOUD-23545), so **Bug** is added via the UI: Project settings → Issue
+> types → Add issue type. Both the local `jira.issue.type` and the CI `JIRA_ISSUE_TYPE` secret are
+> set to `Bug`. And if your `JIRA_API_TOKEN` ends with `=` (base64), don't truncate it when
+> copy-pasting — the trailing `=…` is part of the token.
 
 ## Playwright MCP
 
