@@ -110,7 +110,7 @@ jobs:
       contents: write # peaceiris pushes to the gh-pages branch
     steps:
       - name: Download report artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: allure-report
           path: report
