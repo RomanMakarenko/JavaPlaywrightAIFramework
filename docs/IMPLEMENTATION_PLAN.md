@@ -10,7 +10,7 @@ Detailed step-by-step plan to scaffold the E2E test framework defined in [CLAUDE
 > A new session reads `CLAUDE.md` + this file and starts at the **first unchecked phase**.
 > Update this list after each phase completes.
 
-Current position: **Phase 12 implemented** — Definition of Done verified (see the done-note below). The repo was pushed to GitHub 2026-08-23 (commit `73aa656`) — one acceptance item (CI green + Pages) awaits the first real GitHub run. Next: Phase 13 (future funtime.com.ua work, outside skeleton scope).
+Current position: **Phase 12 implemented** — Definition of Done verified (see the done-note below). Repo pushed to GitHub 2026-08-23; **first two CI runs are green** (full suite on `main`, style gate, Allure report, `gh-pages` deploy all pass). One acceptance item remains: enabling Pages in repo settings so the deployed report serves. Next: Phase 13 (future funtime.com.ua work, outside skeleton scope).
 
 - [x] Phase 0 — Prerequisites verified (JDK 21, Maven, Node, Allure CLI, Playwright browsers)
 - [x] Phase 1 — `pom.xml`: dependencies + surefire/AspectJ `argLine` + allure-maven plugin
@@ -24,7 +24,7 @@ Current position: **Phase 12 implemented** — Definition of Done verified (see 
 - [x] Phase 9 — Claude skills (`.claude/skills/`: test-generator, page-object-generator, style-review, test-runner)
 - [x] Phase 10 — style hooks (`.claude/settings.json` + `scripts/style-check.sh`)
 - [x] Phase 11 — GitHub Actions CI (`.github/workflows/ci.yml`) — *acceptance awaits the first real GitHub run*
-- [x] Phase 12 — Definition of Done checklist — *one item deferred: CI on GitHub (repo not pushed yet), see note*
+- [x] Phase 12 — Definition of Done checklist — *one item open: enabling Pages so the report serves (CI itself is green)*
 - [ ] Phase 13 — funtime.com.ua (future, outside skeleton scope)
 
 ---
@@ -476,7 +476,7 @@ Each skill = directory with `SKILL.md` (frontmatter: name, description; body: in
 - [ ] `main` run: full suite, report published to Pages — configured; first real run pending
 
 **✅ Done 2026-08-23** — `.github/workflows/ci.yml` created and validated locally (Ruby/YAML parse + `actionlint` exit 0). CI command set simulated on the dev machine: `mvn clean test -Dgroups=smoke` → 10/10 green; style-check passes all 17 Java files; `mvn allure:report` already proven in Phase 7.
-- **✅ Prerequisite resolved 2026-08-23** — repo initialized, committed (`73aa656`), pushed to `git@github.com:RomanMakarenko/JavaPlaywrightAIFramework.git` (`main` tracks `origin/main`). The first real GitHub run is triggered by this push. Remaining to close acceptance: enable Pages in repo settings (Settings → Pages → `Deploy from a branch` → `gh-pages`) so the report is served; optionally set `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` as secrets. Also tracked in the Phase 12 DoD note.
+- **✅ Prerequisite resolved 2026-08-23** — repo initialized, committed, pushed to `git@github.com:RomanMakarenko/JavaPlaywrightAIFramework.git` (`main` tracks `origin/main`). First GitHub runs (#1, #2) are **green** (full suite, style gate, Allure report, `gh-pages` deploy). Remaining to close acceptance: enable Pages in repo settings (Settings → Pages → `Deploy from a branch` → `gh-pages`) so the report is served; optionally set `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` as secrets. Also tracked in the Phase 12 DoD note.
 
 ---
 
@@ -489,7 +489,7 @@ Checklist before declaring the skeleton done:
 - [x] `HEADLESS=false BROWSER=firefox mvn test -Dgroups=smoke` runs headed in Firefox
 - [x] `/test-generator` + `/page-object-generator` produce convention-compliant code
 - [x] `style-check.sh` blocks a planted violation
-- [ ] CI green on a test PR; Allure report accessible — **deferred: not a git repo yet** (see note)
+- [ ] CI green on a test PR; Allure report accessible — **CI green confirmed** (runs #1–#2 success on `main`: full suite, style gate, report + gh-pages deploy); *report serving + PR-smoke-path verification pending Pages being enabled*
 - [x] README written: prerequisites, commands, config table, MCP usage, how to add a Page Object + test, CI notes
 - [x] CLAUDE.md verified still accurate after build (update Status section)
 
@@ -500,7 +500,7 @@ Checklist before declaring the skeleton done:
 - Both skills exercised against the live site: `page-object-generator` produced `AboutPage`, `test-generator` produced `AboutPageTest` — both passed `style-check.sh` (exit 0), compiled, and the test ran green (1/1). The generated files were **removed afterwards** to keep the skeleton in its documented 11-test state (the verification stands; a real page PO + test can be added via the same flow).
 - `style-check.sh` blocks a planted violation: a probe test with `Thread.sleep` → exit 1 + clear BLOCK message; a compliant file → exit 0. Probe deleted.
 - README gained an "Adding a Page Object + test" walkthrough (the last missing DoD section); CLAUDE.md Status/config-table/CI sections updated to match the built framework.
-- **Pushed 2026-08-23** (commit `73aa656` → `main` on `git@github.com:RomanMakarenko/JavaPlaywrightAIFramework.git`); the first CI run is triggered by the push. Remaining before "CI green": enable Pages (Settings → Pages → `Deploy from a branch` → `gh-pages`), optionally set `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` secrets, then confirm the run (smoke or full suite) is green and the report URL serves. Re-check this DoD item afterwards.
+- **CI green confirmed 2026-08-23** (repo pushed to `git@github.com:RomanMakarenko/JavaPlaywrightAIFramework.git`): GitHub runs **#1 (`73aa656`) and #2 (`efca665`) both `success`** on `main`. Run #2 job steps all pass: style-check gate → `mvn clean test` (full suite) → `mvn allure:report` → artifacts (`allure-report` 1.3 MB, `allure-results`) → `pages` job deployed the report to the `gh-pages` branch (index.html + assets present, verified via the API). Remaining: enable Pages in repo settings (Settings → Pages → `Deploy from a branch` → `gh-pages`) so the report serves, optionally set `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` secrets, and (optional) verify the PR `smoke` path. Then re-check this DoD item.
 
 ---
 
