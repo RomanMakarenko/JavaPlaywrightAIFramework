@@ -1,0 +1,33 @@
+{
+  "categories": {
+    "rules": [
+      {
+        "name": "Product defects",
+        "matchers": {
+          "statuses": ["failed"],
+          "message": ".*(expected|but was|AssertionError).*"
+        }
+      },
+      {
+        "name": "Test defects",
+        "matchers": {
+          "statuses": ["broken"],
+          "message": ".*(IndexOutOfBounds|NullPointer|ClassCast|IllegalState|NoSuchElement).*"
+        }
+      },
+      {
+        "name": "Infrastructure / flakiness",
+        "matchers": {
+          "statuses": ["broken"],
+          "message": ".*(ConnectException|UnknownHost|NetError|TimeoutException|Cannot find object|ERR_|ECONN).*"
+        }
+      },
+      {
+        "name": "Skipped",
+        "matchers": {
+          "statuses": ["skipped"]
+        }
+      }
+    ]
+  }
+}

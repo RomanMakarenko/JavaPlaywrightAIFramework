@@ -1,0 +1,119 @@
+name: CI
+
+# JavaPlaywrightAIFramework — GitHub Actions CI (docs/IMPLEMENTATION_PLAN.md, Phase 11).
+#
+# Behaviour
+#   * push to main        → full suite (all groups) + publish the Allure report to GitHub Pages
+#   * pull request        → fast smoke group only (hermetic sanity + funtime.com.ua E2E)
+#   * workflow_dispatch   → full suite, manual trigger
+#
+# Every run also uploads the Allure results + generated report as build artifacts, so a failing
+# run still produces failure screenshots and a browsable report via the run's "Artifacts" tab.
+#
+# Report publishing (Phase 11.2 decision): the report is generated with `mvn allure:report`
+# (bundles its own Allure generator — no global CLI, reads `allurerc.json` for categories) and
+# deployed to the `gh-pages` branch with peaceiris/actions-gh-pages. First deploy requires the
+# repo's Pages source to point at the `gh-pages` branch (Settings → Pages). PR runs skip it.
+#
+# NOTE: the repo must live on GitHub for this to run. It is not a git repository yet — push it
+# (git init && git add -A && git commit -m "..." && git remote add origin <url> && git push -u origin main).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# One run per branch at a time; a newer push cancels the older in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ github.event_name == 'pull_request' && 'smoke' || 'full suite' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK 21 (Temurin) with the Maven dependency cache (keyed on pom.xml by setup-java).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Playwright browser binaries are downloaded once per pom change and cached for the runner
+      # (~/.cache/ms-playwright on Linux). Restores in seconds on warm caches.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ hashFiles('pom.xml') }}
+
+      # Same command documented in README/CLAUDE.md. --with-deps installs the OS libraries
+      # chromium needs on a bare runner (sudo apt under the hood — GitHub runners allow it).
+      - name: Install Playwright browsers (chromium + OS deps)
+        run: mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps chromium"
+
+      # The Phase 10 style gate, enforced in CI so it is more than a local hook: hard-block
+      # rules (Thread.sleep, missing BaseTest, assertion imports in POs) fail the build here.
+      - name: Enforce framework conventions (style-check.sh hard rules)
+        run: |
+          status=0
+          while IFS= read -r f; do
+            bash .claude/scripts/style-check.sh "$f" || status=1
+          done < <(find src -name '*.java')
+          exit "$status"
+
+      # Fast PR feedback: smoke group (~15 s locally). On main: every group (smoke + regression).
+      # Regression's valid-user login test skips itself when TEST_USER_EMAIL/PASSWORD are unset
+      # (set them as repo secrets to make it run).
+      - name: Run tests (smoke on PR, full suite on main)
+        run: mvn clean test ${{ github.event_name == 'pull_request' && '-Dgroups=smoke' || '' }}
+
+      # Always generate/upload the report, even when tests fail, so the run carries failure
+      # screenshots + a browsable report. `allurerc.json` (root) drives the failure categories.
+      - name: Generate Allure report
+        if: always()
+        run: mvn allure:report
+
+      - name: Upload Allure results (failure screenshots live here)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: target/allure-results
+          if-no-files-found: warn
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: target/site/allure-maven-plugin
+          if-no-files-found: warn
+
+  # Publish the report to GitHub Pages on main. Runs only after `test` succeeds, so a broken
+  # build never replaces the published report (its artifacts remain downloadable from the run).
+  pages:
+    name: Publish Allure report to GitHub Pages
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # peaceiris pushes to the gh-pages branch
+    steps:
+      - name: Download report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-report
+          path: report
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./report
+          publish_branch: gh-pages
