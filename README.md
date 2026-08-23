@@ -51,13 +51,17 @@ Configuration is read from env vars, falling back to `src/test/resources/config.
 
 | Env var | Property | Default | Purpose |
 |---|---|---|---|
+| `APP_ENV` | `app.env` | `prod` | target environment — `dev` / `stage` / `prod` (all resolve to the shared URL for now) |
 | `BROWSER` | `browser` | `chromium` | `chromium` / `firefox` / `webkit` / `msedge` |
 | `HEADLESS` | `headless` | `true` | headed vs headless mode |
-| `BASE_URL` | `base.url` | `https://funtime.com.ua` | target app URL |
+| `BASE_URL` | `base.url` | — | explicit URL override — always wins over the per-environment URL |
 | `TEST_TIMEOUT` | `test.timeout` | `30000` | default action timeout (ms) |
 | `RETRIES` | `retries` | `0` | TestNG retry count for flaky tests |
 | `TEST_USER_EMAIL` | `test.user.email` | — | valid login test account (skipped until set) |
 | `TEST_USER_PASSWORD` | `test.user.password` | — | password for the account above (never logged) |
+
+The active environment's URL comes from `env.<app.env>.url` in `config.properties` (`env.prod.url`,
+`env.stage.url`, `env.dev.url` — all point at the one known site today); `BASE_URL` always overrides.
 
 > **Local overrides (never committed):** copy the keys you want to change per-machine into
 > `src/test/resources/config.local.properties` (gitignored) — e.g. real `test.user.email` /
@@ -105,11 +109,11 @@ The AI-assisted path for a new page — the same conventions apply if you write 
 |---|---|
 | `pull_request` | `mvn clean test -Dgroups=smoke` — fast (~15 s) PR feedback |
 | `push` to `main` | full suite (all groups) + Allure report published to **GitHub Pages** |
-| `workflow_dispatch` | full suite, manual trigger |
+| `workflow_dispatch` | full suite, manual trigger — choose **browser** + **environment** (defaults `chromium` / `prod`) |
 
-The `test` job installs chromium (+ OS deps), caches Maven deps and Playwright browsers, then runs the **`style-check.sh` conventions gate** (hard rules fail the build), tests, and always uploads `allure-results` (failure screenshots) + the generated Allure report as artifacts. On `main`, the `pages` job deploys the report to the `gh-pages` branch (`mvn allure:report` — no global Allure CLI; `allurerc.json` drives the failure categories).
+The `test` job installs the selected browser (+ OS deps), caches Maven deps and Playwright browsers, then runs the **`style-check.sh` conventions gate** (hard rules fail the build), tests, and always uploads `allure-results` (failure screenshots) + the generated Allure report as artifacts. On `main`, the `pages` job deploys the report to the `gh-pages` branch (`mvn allure:report` — no global Allure CLI; `allurerc.json` drives the failure categories).
 
-> **Getting it running:** the folder is not a git repository yet. `git init && git add -A && git commit -m "…"`, create a GitHub repo, then `git remote add origin <url> && git push -u origin main`. Enable **Pages** in repo settings (`Deploy from a branch` → `gh-pages`). Set `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` as repo secrets to activate the valid-user login regression test.
+> **First-time setup:** enable **Pages** in repo settings (`Deploy from a branch` → `gh-pages`) and set `TEST_USER_EMAIL` / `TEST_USER_PASSWORD` as repo secrets to activate the valid-user login regression test.
 
 ## Conventions
 

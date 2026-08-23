@@ -515,6 +515,21 @@ Checklist before declaring the skeleton done:
 
 ---
 
+## Phase 14 — Environment & browser selection (dev/stage/prod)
+
+**2026-08-23** — first-class environment concept + browser/environment selection on CI. All three
+environments resolve to the one shared URL today; the structure is in place so real per-env URLs
+slot in without touching tests.
+- [x] `ConfigReader`: `app.env` key (`APP_ENV` env) + `getEnvironment()`; `getBaseUrl()` resolves
+      `BASE_URL` env → `env.<app.env>.url` → legacy `base.url` fallback → `IllegalStateException`
+- [x] `config.properties`: `app.env=prod`; `env.{dev,stage,prod}.url=https://funtime.com.ua` (shared)
+- [x] `BaseTest` `@BeforeSuite` log + Allure `environment.properties` surface the active environment
+- [x] `ci.yml`: `workflow_dispatch` inputs `environment` + `browser`; browser-aware install + cache
+      key; `APP_ENV`/`BROWSER` injected into the test step (defaults `prod`/`chromium`)
+- [x] Docs: CLAUDE.md + README.md config tables & CI section updated
+
+---
+
 ## Risks & notes
 
 - **Versions:** dependency versions are reference points; bump to latest stable at build time and lock them in `pom.xml`.

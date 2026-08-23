@@ -46,6 +46,7 @@ public class AllureTestListener implements ISuiteListener {
             Properties env = new Properties();
             env.setProperty("browser", ConfigReader.getBrowser());
             env.setProperty("headless", Boolean.toString(ConfigReader.getHeadless()));
+            env.setProperty("environment", ConfigReader.getEnvironment());
             env.setProperty("base.url", ConfigReader.getBaseUrl());
             env.setProperty("os.name", System.getProperty("os.name"));
             env.setProperty("os.arch", System.getProperty("os.arch"));

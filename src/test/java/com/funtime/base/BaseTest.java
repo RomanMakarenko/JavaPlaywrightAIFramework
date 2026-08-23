@@ -52,8 +52,8 @@ public abstract class BaseTest {
 
     @BeforeSuite
     public static void beforeSuite() {
-        LOG.info("Suite config: browser={}, headless={}, base.url={}",
-                ConfigReader.getBrowser(), ConfigReader.getHeadless(), ConfigReader.getBaseUrl());
+        LOG.info("Suite config: environment={}, browser={}, headless={}, base.url={}",
+                ConfigReader.getEnvironment(), ConfigReader.getBrowser(), ConfigReader.getHeadless(), ConfigReader.getBaseUrl());
     }
 
     /**

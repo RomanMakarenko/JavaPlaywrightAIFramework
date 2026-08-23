@@ -20,6 +20,17 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment (dev/stage/prod all point at the shared URL for now)
+        type: choice
+        default: prod
+        options: [dev, stage, prod]
+      browser:
+        description: Browser to run the suite on
+        type: choice
+        default: chromium
+        options: [chromium, firefox, webkit, msedge]
 
 # One run per branch at a time; a newer push cancels the older in-flight run.
 concurrency:
@@ -28,7 +39,7 @@ concurrency:
 
 jobs:
   test:
-    name: Test (${{ github.event_name == 'pull_request' && 'smoke' || 'full suite' }})
+    name: Test (${{ github.event_name == 'pull_request' && 'smoke' || 'full suite' }} · ${{ inputs.browser || 'chromium' }} · ${{ inputs.environment || 'prod' }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -47,12 +58,15 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ hashFiles('pom.xml') }}
+          key: playwright-browsers-${{ inputs.browser || 'chromium' }}-${{ hashFiles('pom.xml') }}
 
-      # Same command documented in README/CLAUDE.md. --with-deps installs the OS libraries
-      # chromium needs on a bare runner (sudo apt under the hood — GitHub runners allow it).
-      - name: Install Playwright browsers (chromium + OS deps)
-        run: mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps chromium"
+      # Same command documented in README/CLAUDE.md. --with-deps installs the OS libraries the
+      # selected browser needs on a bare runner (sudo apt under the hood — GitHub runners allow it).
+      # chromium/firefox/webkit download into the cached ms-playwright dir; msedge installs
+      # system-wide via apt (NOT cached in ~/.cache/ms-playwright), so msedge runs pay a
+      # ~1-2 min re-install — best-effort on the Linux runner.
+      - name: Install Playwright browsers (${{ inputs.browser || 'chromium' }} + OS deps)
+        run: mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps ${{ inputs.browser || 'chromium' }}"
 
       # The Phase 10 style gate, enforced in CI so it is more than a local hook: hard-block
       # rules (Thread.sleep, missing BaseTest, assertion imports in POs) fail the build here.
@@ -70,6 +84,8 @@ jobs:
       # which is how ConfigReader picks them up (System.getenv, falling back to config.properties).
       - name: Run tests (smoke on PR, full suite on main)
         env:
+          APP_ENV: ${{ inputs.environment || 'prod' }}
+          BROWSER: ${{ inputs.browser || 'chromium' }}
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: mvn clean test ${{ github.event_name == 'pull_request' && '-Dgroups=smoke' || '' }}

@@ -44,13 +44,18 @@ Configuration is read from env vars, falling back to `src/test/resources/config.
 
 | Env var | Property | Default | Purpose |
 |---|---|---|---|
+| `APP_ENV` | `app.env` | `prod` | target environment — `dev` / `stage` / `prod` (all resolve to the shared URL for now) |
 | `BROWSER` | `browser` | `chromium` | `chromium` / `firefox` / `webkit` / `msedge` |
 | `HEADLESS` | `headless` | `true` | headed vs headless mode |
-| `BASE_URL` | `base.url` | — | target app URL |
+| `BASE_URL` | `base.url` | — | explicit URL override — always wins over the per-environment URL |
 | `TEST_TIMEOUT` | `test.timeout` | `30000` | default action timeout (ms) |
 | `RETRIES` | `retries` | `0` | TestNG retry count for flaky tests |
 | `TEST_USER_EMAIL` | `test.user.email` | — | valid login test account (test skips until set) |
 | `TEST_USER_PASSWORD` | `test.user.password` | — | password for the account above (never logged) |
+
+The base URL for the active environment is read from `env.<app.env>.url` in `config.properties`
+(`env.prod.url`, `env.stage.url`, `env.dev.url` — all point at the one known site today). An
+explicit `BASE_URL` env var always overrides it.
 
 > **Local overrides (never committed):** copy keys you want to change per-machine into
 > `src/test/resources/config.local.properties` (gitignored) — e.g. real `test.user.email`/
@@ -168,11 +173,11 @@ Run on `Write`/`Edit` of `src/test/**/*.java` and `src/main/**/pages/**/*.java`;
 
 ## CI (GitHub Actions)
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) — implemented and locally validated (first real GitHub run pending; the folder is not a git repository yet):
-- Triggers: `push` to `main` (full suite + Allure report → GitHub Pages), `pull_request` (fast `smoke` group only), `workflow_dispatch` (full suite). One run per branch at a time (`concurrency`, stale runs cancelled).
-- JDK 21 (Temurin) + Maven cache; Playwright chromium cached in `~/.cache/ms-playwright`, installed with `mvn exec:java ... install --with-deps chromium`.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) — CI green on GitHub (see Actions runs):
+- Triggers: `push` to `main` (full suite + Allure report → GitHub Pages), `pull_request` (fast `smoke` group only), `workflow_dispatch` (full suite, with **environment** + **browser** inputs, defaults `prod` / `chromium`). One run per branch at a time (`concurrency`, stale runs cancelled).
+- JDK 21 (Temurin) + Maven cache; Playwright browser binaries cached in `~/.cache/ms-playwright` (per-browser cache key), installed for the selected browser with `mvn exec:java ... install --with-deps <browser>`. `msedge` installs system-wide via apt and is not cached.
 - **Style gate:** `style-check.sh` hard rules run over every `src/**/*.java` — a convention violation fails the build (the Phase 10 hook's CI escalation).
-- `mvn clean test` headless on `chromium`; smoke group on PRs, full suite on `main`.
+- `mvn clean test` headless; smoke group on PRs, full suite on `main`. The selected browser + environment are injected as `BROWSER` / `APP_ENV` env vars (defaults `chromium` / `prod`).
 - Always (`if: always()`): `mvn allure:report` (bundles its own Allure generator; `allurerc.json` drives failure categories), then upload `allure-results` (failure screenshots) + the generated report as artifacts. On `main`, the `pages` job deploys the report to the `gh-pages` branch via `peaceiris/actions-gh-pages`.
 
 ## References
