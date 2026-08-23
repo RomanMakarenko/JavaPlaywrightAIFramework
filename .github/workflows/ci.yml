@@ -35,6 +35,10 @@ on:
         description: File Jira tickets on failures (main pushes always do; this forces it for a manual run)
         type: boolean
         default: false
+      run-jira-ci-probe:
+        description: Fail the dedicated CI Jira probe test to verify the auto-ticket pipeline (set create-jira-tickets too)
+        type: boolean
+        default: false
 
 # One run per branch at a time; a newer push cancels the older in-flight run.
 concurrency:
@@ -90,7 +94,12 @@ jobs:
       # Jira bug pipeline (Phase 15): JIRA_TICKETS_ENABLED is true on main pushes (full suite) or
       # when a manual run opted in — PR runs never file tickets, so the smoke feedback loop never
       # spams Jira. The Jira credentials come from repo secrets, never from the workflow source.
-      - name: Run tests (smoke on PR, full suite on main)
+      #
+      # CI Jira probe verification: a manual dispatch with run-jira-ci-probe=true swaps the suite
+      # to the dedicated probe suite (-Pjira-probe → testng-jira-probe.xml) and arms JIRA_CI_PROBE,
+      # so JiraCiProbeTest deliberately fails and JiraBugListener files a Bug ticket. Normal runs
+      # never see the probe: the flag is only set by that one dispatch input.
+      - name: Run tests (smoke on PR, full suite on main, Jira probe when armed)
         env:
           APP_ENV: ${{ inputs.environment || 'prod' }}
           BROWSER: ${{ inputs.browser || 'chromium' }}
@@ -104,8 +113,9 @@ jobs:
           # (JSWCLOUD-23545), so "Bug" must exist in the project UI. JIRA_ISSUE_TYPE=Bug is set here
           # so auto-filed tickets are literal Bug issues (default jira.issue.type=Bug in config).
           JIRA_ISSUE_TYPE: ${{ secrets.JIRA_ISSUE_TYPE }}
-          JIRA_TICKETS_ENABLED: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.create-jira-tickets == 'true')) && 'true' || 'false' }}
-        run: mvn clean test ${{ github.event_name == 'pull_request' && '-Dgroups=smoke' || '' }}
+          JIRA_TICKETS_ENABLED: ${{ (inputs.run-jira-ci-probe == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.create-jira-tickets == 'true')) && 'true' || 'false' }}
+          JIRA_CI_PROBE: ${{ inputs.run-jira-ci-probe == 'true' && 'true' || 'false' }}
+        run: mvn clean test ${{ inputs.run-jira-ci-probe == 'true' && '-Pjira-probe' || (github.event_name == 'pull_request' && '-Dgroups=smoke' || '') }}
 
       # Always generate/upload the report, even when tests fail, so the run carries failure
       # screenshots + a browsable report. `allurerc.json` (root) drives the failure categories.

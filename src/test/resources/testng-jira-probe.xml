@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+<!--
+    CI Jira probe suite (Phase 15 verification). Used ONLY for the manual CI dispatch that
+    deliberately fails a test to confirm the Jira auto-ticket pipeline files a Bug ticket.
+
+      mvn clean test -Pjira-probe                    # probe skipped (JIRA_CI_PROBE unset) — safe
+      JIRA_CI_PROBE=true mvn clean test -Pjira-probe # probe FAILS → JiraBugListener files a Bug ticket
+
+    Run it via the `run-jira-ci-probe` workflow_dispatch input on GitHub Actions (see ci.yml).
+    The normal suite (testng.xml) is untouched, so regular runs keep their 11/11 green stat.
+-->
+
+<suite name="CI Jira probe (verification)" parallel="methods" thread-count="4">
+
+    <!-- Same listener set as the main suite — JiraBugListener is what files the ticket. -->
+    <listeners>
+        <listener class-name="com.funtime.listeners.ScreenshotOnFailureListener"/>
+        <listener class-name="com.funtime.listeners.AllureTestListener"/>
+        <listener class-name="com.funtime.listeners.RetryListener"/>
+        <listener class-name="com.funtime.listeners.JiraBugListener"/>
+    </listeners>
+
+    <test name="CI Jira probe">
+        <classes>
+            <class name="com.funtime.tests.JiraCiProbeTest"/>
+        </classes>
+    </test>
+</suite>

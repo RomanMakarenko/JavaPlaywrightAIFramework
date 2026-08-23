@@ -167,4 +167,32 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Phase 15 CI Jira probe: swap the surefire suite to the dedicated testng-jira-probe.xml,
+            so the probe test runs without touching the normal suite (which keeps its 11/11 green stat).
+
+              mvn clean test -Pjira-probe                    # probe skipped (JIRA_CI_PROBE unset) — safe
+              JIRA_CI_PROBE=true mvn clean test -Pjira-probe # probe FAILS → JiraBugListener files a Bug ticket
+
+            The profile merges over the base surefire config (argLine/AspectJ agent is inherited).
+        -->
+        <profile>
+            <id>jira-probe</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>src/test/resources/testng-jira-probe.xml</suiteXmlFile>
+                            </suiteXmlFiles>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

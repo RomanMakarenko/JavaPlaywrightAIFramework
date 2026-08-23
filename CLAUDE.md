@@ -8,7 +8,7 @@ The framework is a **generic skeleton**: structure and conventions are app-agnos
 
 Spec-driven build **complete — Phases 0–12, Definition of Done closed** against the real target `https://funtime.com.ua/` (scaffold, config layer, `BaseTest`, Page Objects, tests, `testng.xml`, Allure, Playwright MCP, `.claude/skills/`, style hooks, GitHub Actions CI). Phase 12 verified: clean test green, Allure report renders, headed Firefox smoke green, skills produce convention-compliant code, style-check blocks violations, README complete. **CI green on GitHub and the Allure report is live** at `https://romanmakarenko.github.io/JavaPlaywrightAIFramework/` (runs #1–#5 pass: full suite, style gate, report + `gh-pages` deploy; Pages enabled via API, source `gh-pages`; full suite **11/11 green** — the valid-user login test runs via `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` repo secrets, which ci.yml maps into the test-step `env:`). Tracked in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) — that checklist is the source of truth for "where are we". Sections below describe the **target** architecture and conventions.
 
-**Phase 15 (Jira bug pipeline) implemented and verified end-to-end** — on test failure the suite files a Jira ticket with the failure screenshot (off by default; see [TASK_SPECK.md](TASK_SPECK.md) and the Jira section below). Verified 2026-08-23 on the real site: failing probe → `SCRUM-10` filed with screenshot; a second run **reused** the open ticket instead of duplicating; full suite 11/11 green; Jira outages never change the suite outcome.
+**Phase 15 (Jira bug pipeline) implemented and verified end-to-end** — on test failure the suite files a Jira ticket with the failure screenshot (off by default; see the Phase 15 spec in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) and the Jira section below). Verified 2026-08-23 on the real site: failing probe → `SCRUM-10` filed with screenshot; a second run **reused** the open ticket instead of duplicating; full suite 11/11 green; Jira outages never change the suite outcome. The `Bug` issue type was added to the SCRUM project via the UI (2026-08-23, verified via API — id `10039`) so auto-filed tickets are literal `Bug` issues.
 
 ## Tech Stack
 
@@ -88,6 +88,7 @@ src/
     jira/                    # Jira Cloud REST client (Phase 15): JiraConfig, JiraClient, JiraTicket
   test/resources/
     testng.xml               # suite config: parallelism, groups, listeners
+    testng-jira-probe.xml    # Phase 15 CI probe suite (run via -Pjira-probe / run-jira-ci-probe dispatch)
     config.properties        # default config (env vars override)
     allure.properties        # allure.results.directory=target/allure-results
 .claude/
@@ -175,7 +176,16 @@ Credential hygiene (non-negotiable):
 
 Verify locally: set the four values + `jira.tickets.enabled=true` in `config.local.properties`,
 run a deliberately failing test, confirm a Bug ticket with a screenshot lands in Jira, then revert
-the probe test. Same flow works on CI via a manual `workflow_dispatch`.
+the probe test.
+
+Verify on CI (dedicated probe — no probe edits needed): dispatch the workflow with
+`run-jira-ci-probe=true` **and** `create-jira-tickets=true`. The test step then runs the dedicated
+probe suite (`-Pjira-probe` → `testng-jira-probe.xml`) with `JIRA_CI_PROBE=true`, so
+`JiraCiProbeTest` deliberately fails and `JiraBugListener` files a Bug ticket
+(`[AUTO-TEST] com.funtime.tests.JiraCiProbeTest#probe_ciFailingTest_filesJiraBug`). The probe is
+**skipped** in every normal run (main pushes, PRs, plain dispatches), so the 11/11 green stat is
+untouched; repeat probe dispatches reuse the open ticket instead of duplicating it. The failing
+run intentionally goes red — that is the point (the ticket + screenshot prove the pipeline).
 
 > **Gotchas (found during end-to-end verification 2026-08-23):** the configured project's issue-type
 > scheme must actually contain `jira.issue.type` — SCRUM is team-managed and its default scheme
