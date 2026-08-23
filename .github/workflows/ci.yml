@@ -14,9 +14,6 @@ name: CI
 # (bundles its own Allure generator — no global CLI, reads `allurerc.json` for categories) and
 # deployed to the `gh-pages` branch with peaceiris/actions-gh-pages. First deploy requires the
 # repo's Pages source to point at the `gh-pages` branch (Settings → Pages). PR runs skip it.
-#
-# NOTE: the repo must live on GitHub for this to run. It is not a git repository yet — push it
-# (git init && git add -A && git commit -m "..." && git remote add origin <url> && git push -u origin main).
 
 on:
   push:
