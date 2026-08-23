@@ -10,7 +10,7 @@ Detailed step-by-step plan to scaffold the E2E test framework defined in [CLAUDE
 > A new session reads `CLAUDE.md` + this file and starts at the **first unchecked phase**.
 > Update this list after each phase completes.
 
-Current position: **Phase 12 implemented — Definition of Done complete**. Repo pushed to GitHub 2026-08-23; CI runs green (full suite on `main`, style gate, Allure report, `gh-pages` deploy) and the **Allure report is live** at `https://romanmakarenko.github.io/JavaPlaywrightAIFramework/` (Pages enabled via API, source `gh-pages`). Next: Phase 13 (future funtime.com.ua work, outside skeleton scope).
+Current position: **Phase 12 implemented — Definition of Done complete**; **Phase 15 (Jira bug pipeline) implemented and verified end-to-end** 2026-08-23 (real Bug/Task ticket `SCRUM-10` filed with a failure screenshot; a second run **reused** it instead of duplicating; full suite 11/11 green). Phases 14 (env/browser) and 15 added 2026-08-23. Repo pushed to GitHub 2026-08-23; CI runs green (full suite on `main`, style gate, Allure report, `gh-pages` deploy) and the **Allure report is live** at `https://romanmakarenko.github.io/JavaPlaywrightAIFramework/`. Next (owner side): set the Jira CI secrets, **rotate the exposed token**, optionally add a `Bug` issue type to the SCRUM scheme (the pipeline currently files `Task`, see 15.6).
 
 - [x] Phase 0 — Prerequisites verified (JDK 21, Maven, Node, Allure CLI, Playwright browsers)
 - [x] Phase 1 — `pom.xml`: dependencies + surefire/AspectJ `argLine` + allure-maven plugin
@@ -26,6 +26,8 @@ Current position: **Phase 12 implemented — Definition of Done complete**. Repo
 - [x] Phase 11 — GitHub Actions CI (`.github/workflows/ci.yml`) — *acceptance awaits the first real GitHub run*
 - [x] Phase 12 — Definition of Done checklist — **all items closed** (CI green + report live on Pages)
 - [ ] Phase 13 — funtime.com.ua (future, outside skeleton scope)
+- [x] Phase 14 — Environment & browser selection (dev/stage/prod)
+- [x] Phase 15 — Jira bug pipeline (auto-file Bug tickets on failure) — **verified end-to-end** (SCRUM-10 + screenshot; dedupe reuses the open ticket)
 
 ---
 
@@ -527,6 +529,22 @@ slot in without touching tests.
 - [x] `ci.yml`: `workflow_dispatch` inputs `environment` + `browser`; browser-aware install + cache
       key; `APP_ENV`/`BROWSER` injected into the test step (defaults `prod`/`chromium`)
 - [x] Docs: CLAUDE.md + README.md config tables & CI section updated
+
+---
+
+## Phase 15 — Jira bug pipeline (auto-file Bug tickets on test failure)
+
+**2026-08-23** — on a failing test, automatically file a **Jira Cloud Bug ticket with the failure
+screenshot** via the REST API. Driven by `TASK_SPECK.md`; works locally and in GitHub Actions.
+Security-first: the API token is a secret — never committed, logged, or rendered into the
+(published) Allure report. Full decomposition + acceptance criteria: [TASK_SPECK.md](../TASK_SPECK.md).
+
+- [x] **15.1 Config** — `ConfigReader` Jira keys (`jira.base.url/email/api.token/project.key/issue.type/labels/tickets.enabled`, env `JIRA_*`), `isJiraConfigured()` = switch AND all required creds; `config.properties` blank defaults; diagnostic `main` prints the token only as `<set>/<unset>`. `ENV_VAR_BY_KEY` moved to `Map.ofEntries` (exceeded `Map.of`'s 10-entry cap). **Verified** on `https://makarenkoroman1989.atlassian.net` / project `SCRUM` — the site's `_edge/tenant_info` cloudId matches the user's `home.atlassian.com` siteId, i.e. the domain was right all along.
+- [x] **15.2 Jira client** (`src/test/java/com/funtime/jira/`) — `JiraConfig` (record + Basic auth), `JiraTicket` (record), `JiraClient` (REST v3: search / create / attach / comment; dedupe by stable summary; serialized under a lock; connect 5s / request 10s; `X-Atlassian-Token: no-check` for attachments; skips attachments > 1.5MB). Never throws into the test flow; never logs the token. **Gson 2.13.1** added (test scope). **Real-world fixes during verification:** (1) Jira Cloud removed `GET /rest/api/3/search` → HTTP 410, migrated to **`/rest/api/3/search/jql`**; (2) `description` and comment bodies must be **ADF** (Atlassian Document Format), plain text → HTTP 400, so `adfDescription()` builds the ADF doc; (3) JQL `summary~"…"` does **not** match values containing `[ ] . #`, so dedupe searches on `summarySearchTerm()` (simple class + method name, e.g. `summary~"JiraProbeTest login_wrongPassword_redirectsToHome"`).
+- [x] **15.3 Listener** (`JiraBugListener`, registered in `testng.xml`) — `ITestListener` + `ISuiteListener`: capture the screenshot in `onTestFailure` (page still alive), record a pending failure; file on suite `onFinish`. Retry-safe: `RetryAnalyzer.retry()` calls `JiraBugListener.onRetryGranted` to drop a pending record when a retry is granted, so a passed retry never files a ticket.
+- [x] **15.4 CI** — `.github/workflows/ci.yml`: Jira repo secrets mapped to the test-step `env:`; `JIRA_TICKETS_ENABLED` true only on `main` pushes or a manual `workflow_dispatch` with the new `create-jira-tickets` input (never on PR runs).
+- [x] **15.5 Docs** — CLAUDE.md (config rows, Jira section, credential hygiene, verify flow), this checklist.
+- [x] **15.6 Verify** — **done 2026-08-23** on the real site: temporary failing probe (wrong-password login) → `JiraBugListener` filed **`SCRUM-10`** (`[AUTO-TEST] com.funtime.tests.JiraProbeTest#login_wrongPassword_redirectsToHome`, type **Task**, label `auto-test`, **`failure-screenshot.png` attached**); a second run **reused** `SCRUM-10` (comment "Failed again" + fresh screenshot, no duplicate — `SCRUM-12` absent); wrong/truncated token → suite stays green (warning only). Probe test removed, full suite 11/11 green, style-check passes. **Gotchas recorded:** the SCRUM (team-managed) scheme has **no `Bug` type** — only Epic/Subtask/Task/Story — so `jira.issue.type=Task` is set locally (to file literal Bug tickets, add a Bug type in the project scheme); the token's trailing `=90AE6DB0` (base64) is part of the token — reading it with `cut -d= -f2` truncates it and yields confusing 401/permission errors (Java `Properties` reads it correctly). **Still required from the owner:** set the CI secrets (`JIRA_BASE_URL`/`JIRA_EMAIL`/`JIRA_API_TOKEN`/`JIRA_PROJECT_KEY`), **rotate the token** exposed in the original `TASK_SPECK.md`, and for CI also export `JIRA_ISSUE_TYPE=Task` (the config default `Bug` is invalid for SCRUM).
 
 ---
 

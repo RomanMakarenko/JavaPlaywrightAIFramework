@@ -2,6 +2,8 @@ package com.funtime.config;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -21,6 +23,13 @@ import java.util.Properties;
  *   RETRIES            → retries
  *   TEST_USER_EMAIL    → test.user.email
  *   TEST_USER_PASSWORD → test.user.password
+ *   JIRA_BASE_URL      → jira.base.url
+ *   JIRA_EMAIL         → jira.email
+ *   JIRA_API_TOKEN     → jira.api.token  (secret — never logged, never in the Allure report)
+ *   JIRA_TICKETS_ENABLED → jira.tickets.enabled
+ *   JIRA_PROJECT_KEY   → jira.project.key
+ *   JIRA_ISSUE_TYPE    → jira.issue.type
+ *   JIRA_LABELS        → jira.labels
  * </pre>
  *
  * <p>{@link #getBaseUrl()} resolves in this order: {@code BASE_URL} env var, then the
@@ -38,16 +47,26 @@ public final class ConfigReader {
     /** Optional per-machine override file (gitignored); merged over the base config. */
     private static final String LOCAL_PROPERTIES_FILE = "config.local.properties";
 
-    /** Env var for each known property key; only these keys can be overridden from the environment. */
-    private static final Map<String, String> ENV_VAR_BY_KEY = Map.of(
-            "app.env", "APP_ENV",
-            "browser", "BROWSER",
-            "headless", "HEADLESS",
-            "base.url", "BASE_URL",
-            "test.timeout", "TEST_TIMEOUT",
-            "retries", "RETRIES",
-            "test.user.email", "TEST_USER_EMAIL",
-            "test.user.password", "TEST_USER_PASSWORD"
+    /**
+     * Env var for each known property key; only these keys can be overridden from the environment.
+     * {@code Map.ofEntries} — more than 10 pairs (Phase 15 added the Jira keys).
+     */
+    private static final Map<String, String> ENV_VAR_BY_KEY = Map.ofEntries(
+            Map.entry("app.env", "APP_ENV"),
+            Map.entry("browser", "BROWSER"),
+            Map.entry("headless", "HEADLESS"),
+            Map.entry("base.url", "BASE_URL"),
+            Map.entry("test.timeout", "TEST_TIMEOUT"),
+            Map.entry("retries", "RETRIES"),
+            Map.entry("test.user.email", "TEST_USER_EMAIL"),
+            Map.entry("test.user.password", "TEST_USER_PASSWORD"),
+            Map.entry("jira.base.url", "JIRA_BASE_URL"),
+            Map.entry("jira.email", "JIRA_EMAIL"),
+            Map.entry("jira.api.token", "JIRA_API_TOKEN"),
+            Map.entry("jira.tickets.enabled", "JIRA_TICKETS_ENABLED"),
+            Map.entry("jira.project.key", "JIRA_PROJECT_KEY"),
+            Map.entry("jira.issue.type", "JIRA_ISSUE_TYPE"),
+            Map.entry("jira.labels", "JIRA_LABELS")
     );
 
     private static final Properties properties = load();
@@ -145,6 +164,61 @@ public final class ConfigReader {
         return get("test.user.password");
     }
 
+    // ---- Jira bug pipeline (Phase 15) -----------------------------------------------------
+    // All values are optional; the pipeline stays off until isJiraConfigured() is true.
+    // The API token is a secret: it must never be logged or written to the Allure report.
+
+    /** Jira Cloud base URL, e.g. {@code https://<your-site>.atlassian.net}. */
+    public static String getJiraBaseUrl() {
+        return get("jira.base.url");
+    }
+
+    /** Atlassian account email used for Basic auth with {@code getJiraApiToken()}. */
+    public static String getJiraEmail() {
+        return get("jira.email");
+    }
+
+    /** Jira API token (secret — never log). Paired with {@link #getJiraEmail()}. */
+    public static String getJiraApiToken() {
+        return get("jira.api.token");
+    }
+
+    /** Master switch for the Jira bug pipeline (env {@code JIRA_TICKETS_ENABLED}). */
+    public static boolean isJiraTicketsEnabled() {
+        return Boolean.parseBoolean(get("jira.tickets.enabled"));
+    }
+
+    /** Jira project key the Bug tickets are filed against (e.g. {@code QA}). */
+    public static String getJiraProjectKey() {
+        return get("jira.project.key");
+    }
+
+    /** Issue type for auto-filed tickets (default {@code Bug}). */
+    public static String getJiraIssueType() {
+        return get("jira.issue.type");
+    }
+
+    /** Comma-separated labels from config (default {@code auto-test}). */
+    public static List<String> getJiraLabels() {
+        return Arrays.stream(get("jira.labels").split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    /** True when the switch is on AND every required credential is present. */
+    public static boolean isJiraConfigured() {
+        return isJiraTicketsEnabled()
+                && !isBlank(getJiraBaseUrl())
+                && !isBlank(getJiraEmail())
+                && !isBlank(getJiraApiToken())
+                && !isBlank(getJiraProjectKey());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     /** Prints the resolved configuration — handy for verifying env overrides. */
     public static void main(String[] args) {
         System.out.printf("environment        = %s%n", getEnvironment());
@@ -155,5 +229,13 @@ public final class ConfigReader {
         System.out.printf("retries            = %d%n", getRetries());
         System.out.printf("test.user.email    = %s%n", getTestUserEmail());
         System.out.printf("test.user.password = %s%n", getTestUserPassword());
+        System.out.printf("jira.enabled       = %b%n", isJiraTicketsEnabled());
+        System.out.printf("jira.configured    = %b%n", isJiraConfigured());
+        System.out.printf("jira.base.url      = %s%n", isBlank(getJiraBaseUrl()) ? "<unset>" : getJiraBaseUrl());
+        System.out.printf("jira.email         = %s%n", isBlank(getJiraEmail()) ? "<unset>" : getJiraEmail());
+        System.out.printf("jira.api.token     = %s%n", isBlank(getJiraApiToken()) ? "<unset>" : "<set>"); // never print the secret
+        System.out.printf("jira.project.key   = %s%n", isBlank(getJiraProjectKey()) ? "<unset>" : getJiraProjectKey());
+        System.out.printf("jira.issue.type    = %s%n", getJiraIssueType());
+        System.out.printf("jira.labels        = %s%n", getJiraLabels());
     }
 }

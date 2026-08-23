@@ -28,11 +28,14 @@
           - ScreenshotOnFailureListener : full-page PNG attached to Allure on test failure
           - AllureTestListener          : writes environment.properties at suite start
           - RetryListener               : wires RetryAnalyzer (config-driven) to every @Test
+          - JiraBugListener             : files a Jira Bug ticket + screenshot on failure (Phase 15,
+                                          no-op unless jira.tickets.enabled and creds are configured)
     -->
     <listeners>
         <listener class-name="com.funtime.listeners.ScreenshotOnFailureListener"/>
         <listener class-name="com.funtime.listeners.AllureTestListener"/>
         <listener class-name="com.funtime.listeners.RetryListener"/>
+        <listener class-name="com.funtime.listeners.JiraBugListener"/>
     </listeners>
 
     <!--

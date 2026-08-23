@@ -8,6 +8,8 @@ The framework is a **generic skeleton**: structure and conventions are app-agnos
 
 Spec-driven build **complete — Phases 0–12, Definition of Done closed** against the real target `https://funtime.com.ua/` (scaffold, config layer, `BaseTest`, Page Objects, tests, `testng.xml`, Allure, Playwright MCP, `.claude/skills/`, style hooks, GitHub Actions CI). Phase 12 verified: clean test green, Allure report renders, headed Firefox smoke green, skills produce convention-compliant code, style-check blocks violations, README complete. **CI green on GitHub and the Allure report is live** at `https://romanmakarenko.github.io/JavaPlaywrightAIFramework/` (runs #1–#5 pass: full suite, style gate, report + `gh-pages` deploy; Pages enabled via API, source `gh-pages`; full suite **11/11 green** — the valid-user login test runs via `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` repo secrets, which ci.yml maps into the test-step `env:`). Tracked in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) — that checklist is the source of truth for "where are we". Sections below describe the **target** architecture and conventions.
 
+**Phase 15 (Jira bug pipeline) implemented and verified end-to-end** — on test failure the suite files a Jira ticket with the failure screenshot (off by default; see [TASK_SPECK.md](TASK_SPECK.md) and the Jira section below). Verified 2026-08-23 on the real site: failing probe → `SCRUM-10` filed with screenshot; a second run **reused** the open ticket instead of duplicating; full suite 11/11 green; Jira outages never change the suite outcome.
+
 ## Tech Stack
 
 | Component | Choice |
@@ -52,6 +54,13 @@ Configuration is read from env vars, falling back to `src/test/resources/config.
 | `RETRIES` | `retries` | `0` | TestNG retry count for flaky tests |
 | `TEST_USER_EMAIL` | `test.user.email` | — | valid login test account (test skips until set) |
 | `TEST_USER_PASSWORD` | `test.user.password` | — | password for the account above (never logged) |
+| `JIRA_BASE_URL` | `jira.base.url` | — | Jira Cloud site, e.g. `https://<site>.atlassian.net` (Jira pipeline) |
+| `JIRA_EMAIL` | `jira.email` | — | Atlassian account email for Basic auth (Jira pipeline) |
+| `JIRA_API_TOKEN` | `jira.api.token` | — | Jira API token — **never commit or log** (Jira pipeline) |
+| `JIRA_PROJECT_KEY` | `jira.project.key` | — | Jira project to file Bug tickets against (Jira pipeline) |
+| `JIRA_TICKETS_ENABLED` | `jira.tickets.enabled` | `false` | master switch for the Jira bug pipeline |
+| `JIRA_ISSUE_TYPE` | `jira.issue.type` | `Bug` | issue type for auto-filed tickets |
+| `JIRA_LABELS` | `jira.labels` | `auto-test` | comma-separated labels on auto-filed tickets |
 
 The base URL for the active environment is read from `env.<app.env>.url` in `config.properties`
 (`env.prod.url`, `env.stage.url`, `env.dev.url` — all point at the one known site today). An
@@ -75,7 +84,8 @@ src/
   test/java/<group>/...
     base/BaseTest.java       # TestNG lifecycle: playwright + browser + context + page
     tests/                   # test classes, one per feature/flow
-    listeners/               # Allure/TestNG listeners (screenshot on failure)
+    listeners/               # Allure/TestNG listeners (screenshot on failure, Jira bug tickets)
+    jira/                    # Jira Cloud REST client (Phase 15): JiraConfig, JiraClient, JiraTicket
   test/resources/
     testng.xml               # suite config: parallelism, groups, listeners
     config.properties        # default config (env vars override)
@@ -138,6 +148,40 @@ Enforced by repo hooks and the `style-review` skill. Follow them when writing te
 
 ### Parallelism
 - Default `parallel="methods"` in `testng.xml`. Every test must be independent (isolated context per test) — no shared state between tests.
+
+## Jira bug pipeline (Phase 15)
+
+On a failing test the suite can automatically file a **Bug ticket in Jira Cloud with the failure
+screenshot**. Off by default — enabled only when `JIRA_TICKETS_ENABLED=true` **and** all of
+`JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY` are set
+(`ConfigReader.isJiraConfigured()`).
+
+How it works:
+- `JiraBugListener` (registered in `testng.xml`) captures the failure screenshot in
+  `onTestFailure` (the page is still alive) and files the ticket on suite finish.
+- Tickets are **deduplicated** by a stable summary `[AUTO-TEST] <Class>#<method>` — an open Jira
+  issue is reused (with a "failed again" comment + fresh screenshot), never re-created.
+- A test that passes on **retry** never files a ticket (`RetryAnalyzer` drops the pending record).
+- Jira failures are logged and swallowed — a Jira outage never changes the suite outcome.
+
+Credential hygiene (non-negotiable):
+- **Never** commit the token, log it, or let it into the Allure report — `environment.properties`
+  is published to public GitHub Pages and must not carry Jira credentials.
+- Locally: real values go in `src/test/resources/config.local.properties` (gitignored).
+- CI: repo secrets `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` / `JIRA_PROJECT_KEY`, mapped
+  in the `.github/workflows/ci.yml` test-step `env:`. `JIRA_TICKETS_ENABLED` is `true` only on
+  `main` pushes (or a manual `workflow_dispatch` with `create-jira-tickets`), never on PR runs.
+- Rotate the token if it was ever exposed.
+
+Verify locally: set the four values + `jira.tickets.enabled=true` in `config.local.properties`,
+run a deliberately failing test, confirm a Bug ticket with a screenshot lands in Jira, then revert
+the probe test. Same flow works on CI via a manual `workflow_dispatch`.
+
+> **Gotchas (found during end-to-end verification 2026-08-23):** the configured project's issue-type
+> scheme must actually contain `jira.issue.type` — a team-managed project's default scheme
+> (Epic/Subtask/Task/Story) has **no `Bug` type**, so set `jira.issue.type=Task` (or add a Bug type
+> in the project scheme); same on CI via `JIRA_ISSUE_TYPE=Task`. And if your `JIRA_API_TOKEN` ends
+> with `=` (base64), don't truncate it when copy-pasting — the trailing `=…` is part of the token.
 
 ## Playwright MCP
 

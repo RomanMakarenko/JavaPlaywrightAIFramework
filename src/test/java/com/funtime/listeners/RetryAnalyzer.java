@@ -32,6 +32,8 @@ public class RetryAnalyzer implements IRetryAnalyzer {
         retriesGiven++;
         LOG.warn("Retrying {}.{} (retry {}/{}) after failure",
                 result.getTestClass().getName(), result.getName(), retriesGiven, budget);
+        // A granted retry means this failure may still pass — don't file a Jira ticket for it yet.
+        JiraBugListener.onRetryGranted(result);
         return true;
     }
 

@@ -32,6 +32,7 @@
         <slf4j.version>2.0.18</slf4j.version>
         <logback.version>1.6.3</logback.version>
         <assertj.version>3.27.7</assertj.version>
+        <gson.version>2.13.1</gson.version>
     </properties>
 
     <dependencyManagement>
@@ -110,6 +111,14 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JSON for the Jira REST client (Jira Cloud API v3) — small single jar (Phase 15) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>${gson.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

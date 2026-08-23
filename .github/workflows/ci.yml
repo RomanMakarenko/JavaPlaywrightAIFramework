@@ -31,6 +31,10 @@ on:
         type: choice
         default: chromium
         options: [chromium, firefox, webkit, msedge]
+      create-jira-tickets:
+        description: File Jira tickets on failures (main pushes always do; this forces it for a manual run)
+        type: boolean
+        default: false
 
 # One run per branch at a time; a newer push cancels the older in-flight run.
 concurrency:
@@ -82,12 +86,24 @@ jobs:
       # Regression's valid-user login test skips itself when TEST_USER_EMAIL/PASSWORD are unset.
       # Secrets are NOT exposed to steps automatically — they must be mapped to env vars explicitly,
       # which is how ConfigReader picks them up (System.getenv, falling back to config.properties).
+      #
+      # Jira bug pipeline (Phase 15): JIRA_TICKETS_ENABLED is true on main pushes (full suite) or
+      # when a manual run opted in — PR runs never file tickets, so the smoke feedback loop never
+      # spams Jira. The Jira credentials come from repo secrets, never from the workflow source.
       - name: Run tests (smoke on PR, full suite on main)
         env:
           APP_ENV: ${{ inputs.environment || 'prod' }}
           BROWSER: ${{ inputs.browser || 'chromium' }}
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+          # SCRUM's (team-managed) scheme has no "Bug" type — only Epic/Subtask/Task/Story — so the
+          # default jira.issue.type=Bug would be rejected; Task is what actually creates (verified 2026-08-23).
+          JIRA_ISSUE_TYPE: ${{ secrets.JIRA_ISSUE_TYPE }}
+          JIRA_TICKETS_ENABLED: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.create-jira-tickets == 'true')) && 'true' || 'false' }}
         run: mvn clean test ${{ github.event_name == 'pull_request' && '-Dgroups=smoke' || '' }}
 
       # Always generate/upload the report, even when tests fail, so the run carries failure
