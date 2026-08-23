@@ -31,14 +31,20 @@ on:
         type: choice
         default: chromium
         options: [chromium, firefox, webkit, msedge]
+      # Note: these were `type: boolean` (checkboxes), but the checked value did not reach the
+      # runner on a manual dispatch (both arrived as false while the string dropdowns
+      # environment/browser delivered fine). As `type: choice` dropdowns they use the same
+      # reliable string-delivery path — set both to `true` to verify the Jira pipeline.
       create-jira-tickets:
-        description: File Jira tickets on failures (main pushes always do; this forces it for a manual run)
-        type: boolean
+        description: File Jira tickets on failures (main pushes always do; set true to force it for a manual run)
+        type: choice
         default: false
+        options: [false, true]
       run-jira-ci-probe:
-        description: Fail the dedicated CI Jira probe test to verify the auto-ticket pipeline (set create-jira-tickets too)
-        type: boolean
+        description: Fail the dedicated CI Jira probe test to verify the auto-ticket pipeline (set create-jira-tickets=true too)
+        type: choice
         default: false
+        options: [false, true]
 
 # One run per branch at a time; a newer push cancels the older in-flight run.
 concurrency:
