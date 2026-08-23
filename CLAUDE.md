@@ -52,6 +52,12 @@ Configuration is read from env vars, falling back to `src/test/resources/config.
 | `TEST_USER_EMAIL` | `test.user.email` | — | valid login test account (test skips until set) |
 | `TEST_USER_PASSWORD` | `test.user.password` | — | password for the account above (never logged) |
 
+> **Local overrides (never committed):** copy keys you want to change per-machine into
+> `src/test/resources/config.local.properties` (gitignored) — e.g. real `test.user.email`/
+> `test.user.password` so the login happy-path test runs locally. It is merged over
+> `config.properties`; env vars still win. CI injects the same values via repo secrets
+> mapped in `.github/workflows/ci.yml` (`env:`), so no secrets are ever committed.
+
 ## Architecture
 
 ```

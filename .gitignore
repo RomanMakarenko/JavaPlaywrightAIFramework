@@ -10,6 +10,9 @@ target/
 # Allure CLI / allure-maven scratch (downloaded report generator, history)
 /.allure/
 
+# Local per-machine config override — may hold real test credentials, never commit
+/src/test/resources/config.local.properties
+
 # Playwright MCP exploration artifacts (snapshots, console logs)
 .playwright-mcp/
 

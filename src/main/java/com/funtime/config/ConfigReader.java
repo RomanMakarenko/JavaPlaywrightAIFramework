@@ -6,8 +6,9 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Loads the framework configuration from {@code config.properties} (test classpath)
- * and applies environment-variable overrides on top.
+ * Loads the framework configuration from {@code config.properties} (test classpath), merges an
+ * optional per-machine {@code config.local.properties} (gitignored) on top, and applies
+ * environment-variable overrides last.
  *
  * <p>Env var → property key mapping (kept in sync with CLAUDE.md):
  * <pre>
@@ -28,6 +29,9 @@ import java.util.Properties;
 public final class ConfigReader {
 
     private static final String PROPERTIES_FILE = "config.properties";
+
+    /** Optional per-machine override file (gitignored); merged over the base config. */
+    private static final String LOCAL_PROPERTIES_FILE = "config.local.properties";
 
     /** Env var for each known property key; only these keys can be overridden from the environment. */
     private static final Map<String, String> ENV_VAR_BY_KEY = Map.of(
@@ -54,6 +58,20 @@ public final class ConfigReader {
             props.load(in);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load " + PROPERTIES_FILE, e);
+        }
+        // Per-machine override file (src/test/resources/config.local.properties, gitignored) — e.g.
+        // real test credentials on a dev machine. Absent on CI and for other devs, so the base
+        // config is kept as is. Env vars still win over both files (see get()).
+        try (InputStream in = ConfigReader.class.getClassLoader().getResourceAsStream(LOCAL_PROPERTIES_FILE)) {
+            if (in != null) {
+                Properties local = new Properties();
+                local.load(in);
+                for (String key : local.stringPropertyNames()) {
+                    props.setProperty(key, local.getProperty(key));
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load " + LOCAL_PROPERTIES_FILE, e);
         }
         return props;
     }
