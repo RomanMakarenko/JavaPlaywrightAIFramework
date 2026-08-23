@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # JDK 21 (Temurin) with the Maven dependency cache (keyed on pom.xml by setup-java).
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -47,7 +47,7 @@ jobs:
       # Playwright browser binaries are downloaded once per pom change and cached for the runner
       # (~/.cache/ms-playwright on Linux). Restores in seconds on warm caches.
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-browsers-${{ hashFiles('pom.xml') }}
@@ -85,7 +85,7 @@ jobs:
 
       - name: Upload Allure results (failure screenshots live here)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: allure-results
           path: target/allure-results
@@ -93,7 +93,7 @@ jobs:
 
       - name: Upload Allure report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: allure-report
           path: target/site/allure-maven-plugin
@@ -110,7 +110,7 @@ jobs:
       contents: write # peaceiris pushes to the gh-pages branch
     steps:
       - name: Download report artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: allure-report
           path: report
