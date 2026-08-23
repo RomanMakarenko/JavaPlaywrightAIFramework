@@ -68,9 +68,13 @@ jobs:
           exit "$status"
 
       # Fast PR feedback: smoke group (~15 s locally). On main: every group (smoke + regression).
-      # Regression's valid-user login test skips itself when TEST_USER_EMAIL/PASSWORD are unset
-      # (set them as repo secrets to make it run).
+      # Regression's valid-user login test skips itself when TEST_USER_EMAIL/PASSWORD are unset.
+      # Secrets are NOT exposed to steps automatically — they must be mapped to env vars explicitly,
+      # which is how ConfigReader picks them up (System.getenv, falling back to config.properties).
       - name: Run tests (smoke on PR, full suite on main)
+        env:
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: mvn clean test ${{ github.event_name == 'pull_request' && '-Dgroups=smoke' || '' }}
 
       # Always generate/upload the report, even when tests fail, so the run carries failure
