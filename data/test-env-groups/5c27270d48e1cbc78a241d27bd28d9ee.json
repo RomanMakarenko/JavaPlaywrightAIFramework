@@ -1,1 +1,1 @@
-{"id":"5c27270d48e1cbc78a241d27bd28d9ee","fullName":"com.funtime.tests.LoginTest.login_validUser_redirectsToHome","name":"login_validUser_redirectsToHome","status":"skipped","testResultsByEnv":{"default":"310d9260391675bc298cae18cede156d"}}
+{"id":"5c27270d48e1cbc78a241d27bd28d9ee","fullName":"com.funtime.tests.LoginTest.login_validUser_redirectsToHome","name":"login_validUser_redirectsToHome","status":"passed","testResultsByEnv":{"default":"abf6a0f2449a6955381862e8b09e1c46"}}
